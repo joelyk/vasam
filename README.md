@@ -1,3 +1,6 @@
+**Créateur / Auteur :** Yankam Ngueguim Joel Stephane  
+**Sites web :** [pandacodeur](https://pandacodeur.com) · [GeniusClassrooms](https://GeniusClassrooms.com)
+
 # VASAM
 
 ## Plateforme intelligente de surveillance des PFAS
