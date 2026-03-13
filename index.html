@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Simulation PFAS – Rivière, capteurs et centre IA</title>
+  <title>VASAM - Veille Analytique et Surveillance Aquatique</title>
   <style>
     :root {
       --bg: #0f172a;
@@ -74,6 +74,21 @@
       font-size: 0.95rem;
     }
 
+    .kicker {
+      color: #c4b5fd;
+      font-size: 0.82rem;
+      font-weight: 800;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+    }
+
+    .meta-line {
+      margin-top: 10px;
+      color: #cbd5e1;
+      font-size: 0.9rem;
+      line-height: 1.5;
+    }
+
     .controls {
       display: flex;
       gap: 10px;
@@ -132,7 +147,7 @@
 
     .right-panel {
       display: grid;
-      grid-template-rows: auto auto auto 1fr;
+      grid-template-rows: auto auto auto auto 1fr;
       gap: 0;
     }
 
@@ -223,6 +238,27 @@
       transition: width 0.3s ease;
     }
 
+    .map-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      overflow: hidden;
+    }
+
+    .map-card canvas {
+      width: 100%;
+      height: 240px;
+      border-radius: 0;
+      background: linear-gradient(180deg, #dbeafe 0%, #bfdbfe 45%, #dcfce7 100%);
+    }
+
+    .map-caption {
+      padding: 12px 14px 14px;
+      color: var(--muted);
+      font-size: 0.82rem;
+      line-height: 1.45;
+    }
+
     .footer-note {
       color: var(--muted);
       font-size: 0.78rem;
@@ -239,15 +275,18 @@
   <div class="app">
     <section class="panel left-panel">
       <div class="header">
-        <h1 class="title">Scénario interactif : rivière, usine PFAS, station d'épuration et centre IA</h1>
+        <div class="kicker">V A S A M • Veille Analytique et Surveillance Aquatique</div>
+        <h1 class="title">L'intelligence artificielle au service de la surveillance aquatique</h1>
         <div class="subtitle">
-          Histoire simulée : une usine rejette progressivement des PFAS dans une rivière. Des capteurs suivent l'eau en temps réel,
-          envoient les données au centre de détection d'IA, puis l'IA cartographie le risque, estime la source probable et affiche un tableau de bord.
+          Une usine rejette progressivement des PFAS dans une rivière. Des capteurs suivent l'eau en temps réel, envoient les données au centre de
+          détection d'IA, puis l'IA cartographie le risque, estime la source probable et affiche un tableau de bord.
         </div>
+        <div class="meta-line">Vardan Voskanyan · Aliénor Vité · Stéphane Yankam · Alexis Delanoue · Maria Ennaciri</div>
+        <div class="meta-line">Maquette interactive - Strasbourg, 13/03/26.</div>
         <div class="controls">
           <button id="startBtn">Lancer le scénario</button>
           <button id="spillBtn" class="secondary">Déclencher une fuite PFAS</button>
-          <button id="treatBtn" class="secondary">Activer l'unité des eaux</button>
+          <button id="treatBtn" class="secondary">Activer l'unité des eaux (STEU)</button>
           <button id="resetBtn" class="danger">Réinitialiser</button>
         </div>
       </div>
@@ -257,7 +296,7 @@
       <div class="legend">
         <span><i class="dot" style="background:#1d4ed8"></i> Rivière</span>
         <span><i class="dot" style="background:#9a3412"></i> Usine PFAS</span>
-        <span><i class="dot" style="background:#14532d"></i> Unité des eaux</span>
+        <span><i class="dot" style="background:#14532d"></i> Unité des eaux (STEU)</span>
         <span><i class="dot" style="background:#7c3aed"></i> Centre IA</span>
         <span><i class="dot" style="background:#22c55e"></i> Capteur normal</span>
         <span><i class="dot" style="background:#ef4444"></i> Capteur en alerte</span>
@@ -265,6 +304,17 @@
     </section>
 
     <aside class="panel right-panel">
+      <div class="section">
+        <h2 style="margin:0 0 12px;font-size:1.05rem;">Cartographie du risque</h2>
+        <div class="map-card">
+          <canvas id="mapCanvas" width="520" height="240"></canvas>
+          <div class="map-caption">
+            Vue synthétique en temps réel : la cartographie reste affichée en permanence à droite pour suivre la propagation du risque PFAS,
+            la zone industrielle, l'unité des eaux (STEU) et le centre IA.
+          </div>
+        </div>
+      </div>
+
       <div class="section">
         <h2 style="margin:0 0 12px;font-size:1.05rem;">Résumé du scénario</h2>
         <div class="grid-2">
@@ -300,8 +350,8 @@
       </div>
 
       <div class="section footer-note">
-        Cette démonstration illustre une logique de preuve de concept : des capteurs mesurent des indicateurs de risque dans l'eau,
-        les données sont agrégées par un centre d'IA, puis transformées en carte, alertes et recommandations.
+        Cette maquette interactive illustre le scénario suivant : une usine rejette progressivement des PFAS dans une rivière, des capteurs suivent
+        l'eau en temps réel, les données sont transmises au centre d'IA, puis l'IA cartographie le risque, estime la source probable et guide l'action.
       </div>
     </aside>
   </div>
@@ -309,6 +359,8 @@
   <script>
     const canvas = document.getElementById('scene');
     const ctx = canvas.getContext('2d');
+    const mapCanvas = document.getElementById('mapCanvas');
+    const mapCtx = mapCanvas.getContext('2d');
 
     const timelineEl = document.getElementById('timeline');
     const sensorListEl = document.getElementById('sensorList');
@@ -333,8 +385,8 @@
       { id: 'S1', label: 'Amont rivière', x: 120, y: 190, risk: 0, conductivity: 18, fluor: 1, pH: 7.1, turbidity: 11 },
       { id: 'S2', label: 'Sortie usine', x: 340, y: 255, risk: 0, conductivity: 19, fluor: 2, pH: 7.0, turbidity: 12 },
       { id: 'S3', label: 'Milieu rivière', x: 505, y: 330, risk: 0, conductivity: 17, fluor: 1, pH: 7.2, turbidity: 10 },
-      { id: 'S4', label: 'Entrée unité des eaux', x: 670, y: 365, risk: 0, conductivity: 18, fluor: 2, pH: 7.1, turbidity: 11 },
-      { id: 'S5', label: 'Sortie unité des eaux', x: 835, y: 415, risk: 0, conductivity: 17, fluor: 1, pH: 7.3, turbidity: 9 },
+      { id: 'S4', label: 'Entrée unité des eaux (STEU)', x: 670, y: 365, risk: 0, conductivity: 18, fluor: 2, pH: 7.1, turbidity: 11 },
+      { id: 'S5', label: 'Sortie unité des eaux (STEU)', x: 835, y: 415, risk: 0, conductivity: 17, fluor: 1, pH: 7.3, turbidity: 9 },
       { id: 'S6', label: 'Aval rivière', x: 980, y: 500, risk: 0, conductivity: 16, fluor: 1, pH: 7.2, turbidity: 10 }
     ];
 
@@ -401,11 +453,11 @@
         sourceProbableEl.textContent = 'Usine PFAS / rejet industriel';
         recommendationEl.textContent = state.treatmentActive
           ? "Maintenir le traitement, intensifier l'échantillonnage aval et confirmer en laboratoire."
-          : "Déployer l'unité des eaux, isoler la zone de rejet et lancer une analyse de confirmation.";
+          : "Déployer l'unité des eaux (STEU), isoler la zone de rejet et lancer une analyse de confirmation.";
         statusBadgeEl.textContent = avgRisk > 55 ? 'Alerte critique' : 'Suspicion élevée';
       } else if (sourceSensor.id === 'S4' || sourceSensor.id === 'S5') {
         sourceProbableEl.textContent = 'Zone station / transfert dans le réseau';
-        recommendationEl.textContent = "Contrôler la filtration, comparer l'entrée et la sortie de l'unité des eaux.";
+        recommendationEl.textContent = "Contrôler la filtration, comparer l'entrée et la sortie de l'unité des eaux (STEU).";
         statusBadgeEl.textContent = 'Risque localisé';
       } else {
         sourceProbableEl.textContent = 'Propagation dans la rivière';
@@ -511,7 +563,7 @@
       } else if (avgRisk >= 45 && !state.treatmentActive && step >= 3) {
         addTimeline('Alerte IA', "Le modèle estime une source probable industrielle et recommande une intervention prioritaire sur la zone de rejet.");
       } else if (state.treatmentActive && step >= 4) {
-        addTimeline('Action de traitement', "L'unité des eaux est activée. L'IA suit la baisse progressive du risque sur les capteurs aval.");
+        addTimeline('Action de traitement', "L'unité des eaux (STEU) est activée. L'IA suit la baisse progressive du risque sur les capteurs aval.");
       } else if (avgRisk < 18 && state.treatmentActive && step >= 5) {
         addTimeline('Stabilisation', "La carte du risque redevient modérée. L'IA suggère de maintenir la surveillance et de confirmer l'événement par analyse complémentaire.");
       }
@@ -632,7 +684,7 @@
       ctx.fillRect(x+118, y+18, 34, 20);
       ctx.fillStyle = '#fff';
       ctx.font = 'bold 16px sans-serif';
-      ctx.fillText('Unité des eaux', x+12, y+110);
+      ctx.fillText('Unité des eaux (STEU)', x-8, y+110);
       if (state.treatmentActive) {
         ctx.fillStyle = 'rgba(34,197,94,0.15)';
         ctx.beginPath();
@@ -751,6 +803,74 @@
       }
     }
 
+    function drawMiniMap() {
+      const w = mapCanvas.width;
+      const h = mapCanvas.height;
+      mapCtx.clearRect(0, 0, w, h);
+
+      const bg = mapCtx.createLinearGradient(0, 0, 0, h);
+      bg.addColorStop(0, '#dbeafe');
+      bg.addColorStop(0.5, '#bfdbfe');
+      bg.addColorStop(1, '#dcfce7');
+      mapCtx.fillStyle = bg;
+      mapCtx.fillRect(0, 0, w, h);
+
+      const scaleX = w / canvas.width;
+      const scaleY = h / canvas.height;
+      const sx = value => value * scaleX;
+      const sy = value => value * scaleY;
+
+      mapCtx.strokeStyle = '#60a5fa';
+      mapCtx.lineWidth = 28;
+      mapCtx.lineCap = 'round';
+      mapCtx.lineJoin = 'round';
+      mapCtx.beginPath();
+      mapCtx.moveTo(sx(riverPoints[0].x), sy(riverPoints[0].y));
+      for (let i = 1; i < riverPoints.length; i++) {
+        mapCtx.lineTo(sx(riverPoints[i].x), sy(riverPoints[i].y));
+      }
+      mapCtx.stroke();
+
+      mapCtx.strokeStyle = '#2563eb';
+      mapCtx.lineWidth = 20;
+      mapCtx.stroke();
+
+      sensors.forEach(sensor => {
+        if (sensor.risk < 10) return;
+        const radius = 10 + sensor.risk * 0.22;
+        const alpha = clamp(sensor.risk / 220, 0.07, 0.34);
+        const grad = mapCtx.createRadialGradient(sx(sensor.x), sy(sensor.y), 2, sx(sensor.x), sy(sensor.y), radius);
+        grad.addColorStop(0, `rgba(239,68,68,${alpha})`);
+        grad.addColorStop(1, 'rgba(239,68,68,0)');
+        mapCtx.fillStyle = grad;
+        mapCtx.beginPath();
+        mapCtx.arc(sx(sensor.x), sy(sensor.y), radius, 0, Math.PI * 2);
+        mapCtx.fill();
+      });
+
+      mapCtx.fillStyle = '#9a3412';
+      mapCtx.fillRect(sx(230), sy(120), 42, 20);
+      mapCtx.fillStyle = '#14532d';
+      mapCtx.fillRect(sx(760), sy(180), 56, 18);
+      mapCtx.fillStyle = '#7c3aed';
+      mapCtx.fillRect(sx(840), sy(32), 86, 22);
+
+      sensors.forEach(sensor => {
+        mapCtx.fillStyle = sensor.risk >= 55 ? '#ef4444' : sensor.risk >= 25 ? '#f59e0b' : '#22c55e';
+        mapCtx.beginPath();
+        mapCtx.arc(sx(sensor.x), sy(sensor.y), 5, 0, Math.PI * 2);
+        mapCtx.fill();
+      });
+
+      mapCtx.fillStyle = '#0f172a';
+      mapCtx.font = 'bold 12px sans-serif';
+      mapCtx.fillText('Cartographie IA', 14, 18);
+      mapCtx.font = '11px sans-serif';
+      mapCtx.fillText('Usine PFAS', sx(230), sy(115));
+      mapCtx.fillText('STEU', sx(760), sy(174));
+      mapCtx.fillText('Centre IA', sx(840), sy(28));
+    }
+
     function draw() {
       drawBackground();
       drawBanks();
@@ -763,6 +883,7 @@
       drawPipesAndLinks();
       drawSensors();
       drawLabels();
+      drawMiniMap();
     }
 
     function loop() {
@@ -786,7 +907,7 @@
         s.turbidity = 9 + (i % 3);
       });
       timelineEl.innerHTML = '';
-      addTimeline('Réinitialisation', 'La rivière revient à un état de référence. Les capteurs repartent en mode surveillance.');
+      addTimeline('Réinitialisation', 'La rivière revient à un état de référence. Les capteurs repartent en mode surveillance et la cartographie IA se met à jour.');
       evaluateAI();
       updateSensorList();
     }
@@ -802,15 +923,15 @@
       state.running = true;
       state.spillActive = true;
       for (let i = 0; i < 8; i++) spawnParticle();
-      addTimeline('Fuite simulée', "L'usine relâche un panache de PFAS. Les capteurs proches de la sortie industrielle commencent à s'animer.");
+      addTimeline('Fuite simulée', "L'usine relâche un panache de PFAS. Les capteurs proches de la sortie industrielle commencent à s'animer sur la cartographie.");
     });
 
     treatBtn.addEventListener('click', () => {
       state.treatmentActive = !state.treatmentActive;
       addTimeline(
-        state.treatmentActive ? 'Unité des eaux activée' : 'Unité des eaux arrêtée',
+        state.treatmentActive ? 'Unité des eaux (STEU) activée' : 'Unité des eaux (STEU) arrêtée',
         state.treatmentActive
-          ? "Le traitement est lancé pour réduire la charge polluante vers l'aval."
+          ? "Le traitement est lancé pour réduire la charge polluante vers l'aval et l'effet est visible sur la cartographie."
           : "Le traitement est suspendu ; l'IA continue la surveillance."
       );
     });
