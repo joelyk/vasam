@@ -500,9 +500,12 @@
 
       state.particles.forEach(p => {
         p.t += p.speed * (state.treatmentActive ? 0.88 : 1);
-        if (state.treatmentActive && p.t > 0.62) p.strength *= 0.985;
+        if (state.treatmentActive && p.t > 0.6) {
+          p.strength *= 0.94;
+          p.radius *= 0.992;
+        }
       });
-      state.particles = state.particles.filter(p => p.t < 1.03 && p.strength > 2);
+      state.particles = state.particles.filter(p => p.t < 1.03 && p.strength > 1.2);
 
       sensors.forEach(sensor => {
         let local = 0;
@@ -515,9 +518,20 @@
           }
         });
 
-        const treatmentBonus = state.treatmentActive && (sensor.id === 'S5' || sensor.id === 'S6') ? 18 : 0;
+        if (state.treatmentActive && sensorT > 0.6) {
+          local *= sensor.id === 'S4' ? 0.75 : sensor.id === 'S5' ? 0.36 : 0.22;
+        }
+
+        const treatmentBonus =
+          state.treatmentActive
+            ? sensor.id === 'S4' ? 12
+            : sensor.id === 'S5' ? 38
+            : sensor.id === 'S6' ? 48
+            : 0
+            : 0;
         const adjusted = clamp(local - treatmentBonus, 0, 100);
-        sensor.risk += (adjusted - sensor.risk) * 0.14;
+        const responseRate = state.treatmentActive && sensorT > 0.6 ? 0.24 : 0.14;
+        sensor.risk += (adjusted - sensor.risk) * responseRate;
 
         sensor.conductivity = 17 + sensor.risk * 0.04 + rand(-0.3, 0.3);
         sensor.fluor = 1 + sensor.risk * 0.05 + rand(-0.25, 0.25);
