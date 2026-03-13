@@ -1,0 +1,824 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Simulation PFAS – Rivière, capteurs et centre IA</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --panel: #111827;
+      --panel-2: #1f2937;
+      --text: #e5e7eb;
+      --muted: #94a3b8;
+      --accent: #38bdf8;
+      --danger: #ef4444;
+      --warn: #f59e0b;
+      --ok: #22c55e;
+      --river: #1d4ed8;
+      --river-light: #60a5fa;
+      --factory: #9a3412;
+      --station: #14532d;
+      --ai: #7c3aed;
+      --card: #0b1220;
+      --border: rgba(255,255,255,0.08);
+      --shadow: 0 10px 30px rgba(0,0,0,0.35);
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      background: linear-gradient(180deg, #020617 0%, #0f172a 100%);
+      color: var(--text);
+    }
+
+    .app {
+      display: grid;
+      grid-template-columns: 1.6fr 1fr;
+      gap: 16px;
+      min-height: 100vh;
+      padding: 16px;
+    }
+
+    .panel {
+      background: rgba(15, 23, 42, 0.9);
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .left-panel {
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+    }
+
+    .header {
+      padding: 18px 20px 10px;
+      border-bottom: 1px solid var(--border);
+      background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0));
+    }
+
+    .title {
+      margin: 0;
+      font-size: 1.35rem;
+      font-weight: 800;
+      letter-spacing: 0.01em;
+    }
+
+    .subtitle {
+      margin-top: 6px;
+      color: var(--muted);
+      line-height: 1.45;
+      font-size: 0.95rem;
+    }
+
+    .controls {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 14px;
+    }
+
+    button {
+      border: none;
+      border-radius: 999px;
+      padding: 10px 14px;
+      font-weight: 700;
+      cursor: pointer;
+      color: white;
+      background: linear-gradient(135deg, #2563eb, #0ea5e9);
+      transition: transform 0.15s ease, opacity 0.15s ease;
+    }
+    button:hover { transform: translateY(-1px); }
+    button.secondary { background: linear-gradient(135deg, #374151, #1f2937); }
+    button.danger { background: linear-gradient(135deg, #dc2626, #ef4444); }
+
+    .scene-wrap {
+      position: relative;
+      padding: 14px;
+    }
+
+    canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+      border-radius: 20px;
+      background: linear-gradient(180deg, #dbeafe 0%, #bfdbfe 45%, #dcfce7 100%);
+    }
+
+    .legend {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      padding: 0 16px 16px;
+      color: var(--muted);
+      font-size: 0.88rem;
+    }
+
+    .legend span {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+
+    .right-panel {
+      display: grid;
+      grid-template-rows: auto auto auto 1fr;
+      gap: 0;
+    }
+
+    .section {
+      padding: 18px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .section:last-child { border-bottom: none; }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0,1fr));
+      gap: 12px;
+    }
+
+    .stat {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 14px;
+    }
+
+    .stat-label {
+      color: var(--muted);
+      font-size: 0.82rem;
+      margin-bottom: 8px;
+    }
+
+    .stat-value {
+      font-size: 1.5rem;
+      font-weight: 800;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      border-radius: 999px;
+      padding: 7px 12px;
+      font-size: 0.82rem;
+      font-weight: 700;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid var(--border);
+      margin-top: 10px;
+    }
+
+    .timeline, .sensor-list {
+      display: grid;
+      gap: 10px;
+      max-height: 280px;
+      overflow: auto;
+      padding-right: 4px;
+    }
+
+    .timeline-item, .sensor-item {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 12px 14px;
+    }
+
+    .timeline-item strong, .sensor-item strong {
+      display: block;
+      margin-bottom: 5px;
+      font-size: 0.95rem;
+    }
+
+    .small {
+      color: var(--muted);
+      font-size: 0.82rem;
+      line-height: 1.4;
+    }
+
+    .risk-bar {
+      height: 10px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.08);
+      overflow: hidden;
+      margin-top: 8px;
+    }
+
+    .risk-fill {
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, var(--ok), var(--warn), var(--danger));
+      width: 0%;
+      transition: width 0.3s ease;
+    }
+
+    .footer-note {
+      color: var(--muted);
+      font-size: 0.78rem;
+      line-height: 1.5;
+    }
+
+    @media (max-width: 1100px) {
+      .app { grid-template-columns: 1fr; }
+      .left-panel { min-height: 58vh; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <section class="panel left-panel">
+      <div class="header">
+        <h1 class="title">Scénario interactif : rivière, usine PFAS, station d'épuration et centre IA</h1>
+        <div class="subtitle">
+          Histoire simulée : une usine rejette progressivement des PFAS dans une rivière. Des capteurs suivent l'eau en temps réel,
+          envoient les données au centre de détection d'IA, puis l'IA cartographie le risque, estime la source probable et affiche un tableau de bord.
+        </div>
+        <div class="controls">
+          <button id="startBtn">Lancer le scénario</button>
+          <button id="spillBtn" class="secondary">Déclencher une fuite PFAS</button>
+          <button id="treatBtn" class="secondary">Activer l'unité des eaux</button>
+          <button id="resetBtn" class="danger">Réinitialiser</button>
+        </div>
+      </div>
+      <div class="scene-wrap">
+        <canvas id="scene" width="1100" height="700"></canvas>
+      </div>
+      <div class="legend">
+        <span><i class="dot" style="background:#1d4ed8"></i> Rivière</span>
+        <span><i class="dot" style="background:#9a3412"></i> Usine PFAS</span>
+        <span><i class="dot" style="background:#14532d"></i> Unité des eaux</span>
+        <span><i class="dot" style="background:#7c3aed"></i> Centre IA</span>
+        <span><i class="dot" style="background:#22c55e"></i> Capteur normal</span>
+        <span><i class="dot" style="background:#ef4444"></i> Capteur en alerte</span>
+      </div>
+    </section>
+
+    <aside class="panel right-panel">
+      <div class="section">
+        <h2 style="margin:0 0 12px;font-size:1.05rem;">Résumé du scénario</h2>
+        <div class="grid-2">
+          <div class="stat">
+            <div class="stat-label">Risque PFAS global</div>
+            <div class="stat-value" id="globalRisk">0%</div>
+            <div class="risk-bar"><div class="risk-fill" id="globalRiskBar"></div></div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">Source probable</div>
+            <div class="stat-value" id="sourceProbable" style="font-size:1rem;line-height:1.3;">Aucune anomalie</div>
+            <div class="badge" id="statusBadge">Système en veille</div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">Capteurs en alerte</div>
+            <div class="stat-value" id="sensorAlertCount">0 / 6</div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">Recommandation IA</div>
+            <div class="stat-value" id="recommendation" style="font-size:0.95rem;line-height:1.35;">Attente de données</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2 style="margin:0 0 12px;font-size:1.05rem;">Capteurs et données relayées</h2>
+        <div class="sensor-list" id="sensorList"></div>
+      </div>
+
+      <div class="section">
+        <h2 style="margin:0 0 12px;font-size:1.05rem;">Journal narratif de l'IA</h2>
+        <div class="timeline" id="timeline"></div>
+      </div>
+
+      <div class="section footer-note">
+        Cette démonstration illustre une logique de preuve de concept : des capteurs mesurent des indicateurs de risque dans l'eau,
+        les données sont agrégées par un centre d'IA, puis transformées en carte, alertes et recommandations.
+      </div>
+    </aside>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('scene');
+    const ctx = canvas.getContext('2d');
+
+    const timelineEl = document.getElementById('timeline');
+    const sensorListEl = document.getElementById('sensorList');
+    const globalRiskEl = document.getElementById('globalRisk');
+    const globalRiskBarEl = document.getElementById('globalRiskBar');
+    const sourceProbableEl = document.getElementById('sourceProbable');
+    const recommendationEl = document.getElementById('recommendation');
+    const statusBadgeEl = document.getElementById('statusBadge');
+    const sensorAlertCountEl = document.getElementById('sensorAlertCount');
+
+    const startBtn = document.getElementById('startBtn');
+    const spillBtn = document.getElementById('spillBtn');
+    const treatBtn = document.getElementById('treatBtn');
+    const resetBtn = document.getElementById('resetBtn');
+
+    const riverPoints = [
+      {x: 40, y: 180}, {x: 160, y: 200}, {x: 300, y: 250}, {x: 420, y: 310},
+      {x: 560, y: 340}, {x: 700, y: 370}, {x: 840, y: 420}, {x: 980, y: 500}, {x: 1060, y: 560}
+    ];
+
+    const sensors = [
+      { id: 'S1', label: 'Amont rivière', x: 120, y: 190, risk: 0, conductivity: 18, fluor: 1, pH: 7.1, turbidity: 11 },
+      { id: 'S2', label: 'Sortie usine', x: 340, y: 255, risk: 0, conductivity: 19, fluor: 2, pH: 7.0, turbidity: 12 },
+      { id: 'S3', label: 'Milieu rivière', x: 505, y: 330, risk: 0, conductivity: 17, fluor: 1, pH: 7.2, turbidity: 10 },
+      { id: 'S4', label: 'Entrée unité des eaux', x: 670, y: 365, risk: 0, conductivity: 18, fluor: 2, pH: 7.1, turbidity: 11 },
+      { id: 'S5', label: 'Sortie unité des eaux', x: 835, y: 415, risk: 0, conductivity: 17, fluor: 1, pH: 7.3, turbidity: 9 },
+      { id: 'S6', label: 'Aval rivière', x: 980, y: 500, risk: 0, conductivity: 16, fluor: 1, pH: 7.2, turbidity: 10 }
+    ];
+
+    const state = {
+      running: false,
+      time: 0,
+      particles: [],
+      waterPhase: 0,
+      spillActive: false,
+      treatmentActive: false,
+      pulse: 0,
+      lastNarrationStep: -1
+    };
+
+    function rand(min, max) {
+      return Math.random() * (max - min) + min;
+    }
+
+    function clamp(v, min, max) {
+      return Math.max(min, Math.min(max, v));
+    }
+
+    function addTimeline(title, text) {
+      const item = document.createElement('div');
+      item.className = 'timeline-item';
+      item.innerHTML = `<strong>${title}</strong><div class="small">${text}</div>`;
+      timelineEl.prepend(item);
+      while (timelineEl.children.length > 8) timelineEl.removeChild(timelineEl.lastChild);
+    }
+
+    function updateSensorList() {
+      sensorListEl.innerHTML = '';
+      sensors.forEach(sensor => {
+        const div = document.createElement('div');
+        div.className = 'sensor-item';
+        const stateText = sensor.risk >= 55 ? 'Alerte' : sensor.risk >= 25 ? 'Surveillance' : 'Normal';
+        const color = sensor.risk >= 55 ? 'var(--danger)' : sensor.risk >= 25 ? 'var(--warn)' : 'var(--ok)';
+        div.innerHTML = `
+          <strong>${sensor.id} — ${sensor.label}</strong>
+          <div class="small">Conductivité: ${sensor.conductivity.toFixed(1)} µS/cm · Fluor total: ${sensor.fluor.toFixed(1)} · pH: ${sensor.pH.toFixed(1)} · Turbidité: ${sensor.turbidity.toFixed(1)}</div>
+          <div class="small" style="margin-top:6px;color:${color};font-weight:700;">Niveau estimé PFAS : ${Math.round(sensor.risk)}% · ${stateText}</div>
+          <div class="risk-bar"><div class="risk-fill" style="width:${sensor.risk}%"></div></div>
+        `;
+        sensorListEl.appendChild(div);
+      });
+    }
+
+    function evaluateAI() {
+      const risks = sensors.map(s => s.risk);
+      const maxRisk = Math.max(...risks);
+      const avgRisk = risks.reduce((a,b) => a+b, 0) / risks.length;
+      const alertCount = sensors.filter(s => s.risk >= 55).length;
+      const sourceSensor = sensors.reduce((best, s) => s.risk > best.risk ? s : best, sensors[0]);
+
+      globalRiskEl.textContent = `${Math.round(avgRisk)}%`;
+      globalRiskBarEl.style.width = `${avgRisk}%`;
+      sensorAlertCountEl.textContent = `${alertCount} / ${sensors.length}`;
+
+      if (maxRisk < 20) {
+        sourceProbableEl.textContent = 'Aucune anomalie';
+        recommendationEl.textContent = 'Maintenir la surveillance des capteurs.';
+        statusBadgeEl.textContent = 'Système stable';
+      } else if (sourceSensor.id === 'S2' || sourceSensor.id === 'S3') {
+        sourceProbableEl.textContent = 'Usine PFAS / rejet industriel';
+        recommendationEl.textContent = state.treatmentActive
+          ? "Maintenir le traitement, intensifier l'échantillonnage aval et confirmer en laboratoire."
+          : "Déployer l'unité des eaux, isoler la zone de rejet et lancer une analyse de confirmation.";
+        statusBadgeEl.textContent = avgRisk > 55 ? 'Alerte critique' : 'Suspicion élevée';
+      } else if (sourceSensor.id === 'S4' || sourceSensor.id === 'S5') {
+        sourceProbableEl.textContent = 'Zone station / transfert dans le réseau';
+        recommendationEl.textContent = "Contrôler la filtration, comparer l'entrée et la sortie de l'unité des eaux.";
+        statusBadgeEl.textContent = 'Risque localisé';
+      } else {
+        sourceProbableEl.textContent = 'Propagation dans la rivière';
+        recommendationEl.textContent = "Suivre l'aval, protéger les zones sensibles et ajuster le plan d'intervention.";
+        statusBadgeEl.textContent = 'Propagation détectée';
+      }
+    }
+
+    function riverPointAt(t) {
+      const segCount = riverPoints.length - 1;
+      const scaled = clamp(t, 0, 0.9999) * segCount;
+      const i = Math.floor(scaled);
+      const localT = scaled - i;
+      const a = riverPoints[i];
+      const b = riverPoints[i + 1];
+      return {
+        x: a.x + (b.x - a.x) * localT,
+        y: a.y + (b.y - a.y) * localT
+      };
+    }
+
+    function spawnParticle() {
+      const particle = {
+        t: 0.27 + rand(-0.01, 0.01),
+        speed: rand(0.0012, 0.0022),
+        strength: rand(50, 95),
+        radius: rand(5, 9)
+      };
+      state.particles.push(particle);
+    }
+
+    function updateSimulation() {
+      state.time += 1;
+      state.waterPhase += 0.03;
+      state.pulse += 0.08;
+
+      if (state.running && state.spillActive && Math.random() < 0.22) {
+        spawnParticle();
+      }
+
+      state.particles.forEach(p => {
+        p.t += p.speed * (state.treatmentActive ? 0.88 : 1);
+        if (state.treatmentActive && p.t > 0.62) p.strength *= 0.985;
+      });
+      state.particles = state.particles.filter(p => p.t < 1.03 && p.strength > 2);
+
+      sensors.forEach(sensor => {
+        let local = 0;
+        const sensorT = approximateT(sensor.x, sensor.y);
+
+        state.particles.forEach(p => {
+          const dist = Math.abs(p.t - sensorT);
+          if (dist < 0.06) {
+            local += (1 - dist / 0.06) * p.strength;
+          }
+        });
+
+        const treatmentBonus = state.treatmentActive && (sensor.id === 'S5' || sensor.id === 'S6') ? 18 : 0;
+        const adjusted = clamp(local - treatmentBonus, 0, 100);
+        sensor.risk += (adjusted - sensor.risk) * 0.14;
+
+        sensor.conductivity = 17 + sensor.risk * 0.04 + rand(-0.3, 0.3);
+        sensor.fluor = 1 + sensor.risk * 0.05 + rand(-0.25, 0.25);
+        sensor.pH = 7.2 - sensor.risk * 0.002 + rand(-0.05, 0.05);
+        sensor.turbidity = 10 + sensor.risk * 0.03 + rand(-0.35, 0.35);
+      });
+
+      evaluateAI();
+      updateSensorList();
+      narrationEngine();
+    }
+
+    function approximateT(x, y) {
+      let bestT = 0;
+      let bestDist = Infinity;
+      for (let i = 0; i <= 100; i++) {
+        const t = i / 100;
+        const p = riverPointAt(t);
+        const d = Math.hypot(p.x - x, p.y - y);
+        if (d < bestDist) {
+          bestDist = d;
+          bestT = t;
+        }
+      }
+      return bestT;
+    }
+
+    function narrationEngine() {
+      const avgRisk = sensors.reduce((a, s) => a + s.risk, 0) / sensors.length;
+      const step = Math.floor(state.time / 150);
+      if (step === state.lastNarrationStep) return;
+      state.lastNarrationStep = step;
+
+      if (state.time < 5) {
+        addTimeline('Début du scénario', "Les capteurs s'initialisent et commencent à transmettre les premières mesures vers le centre d'IA.");
+        return;
+      }
+
+      if (state.spillActive && step === 1) {
+        addTimeline('Événement détecté', "Une variation anormale apparaît près de la sortie industrielle. Les données sont relayées au centre de détection d'IA.");
+      } else if (avgRisk > 20 && avgRisk < 45 && step >= 2) {
+        addTimeline('Analyse en cours', "L'IA agrège les mesures, compare l'amont et l'aval, puis estime un risque PFAS localisé.");
+      } else if (avgRisk >= 45 && !state.treatmentActive && step >= 3) {
+        addTimeline('Alerte IA', "Le modèle estime une source probable industrielle et recommande une intervention prioritaire sur la zone de rejet.");
+      } else if (state.treatmentActive && step >= 4) {
+        addTimeline('Action de traitement', "L'unité des eaux est activée. L'IA suit la baisse progressive du risque sur les capteurs aval.");
+      } else if (avgRisk < 18 && state.treatmentActive && step >= 5) {
+        addTimeline('Stabilisation', "La carte du risque redevient modérée. L'IA suggère de maintenir la surveillance et de confirmer l'événement par analyse complémentaire.");
+      }
+    }
+
+    function drawBackground() {
+      const g = ctx.createLinearGradient(0, 0, 0, canvas.height);
+      g.addColorStop(0, '#dbeafe');
+      g.addColorStop(0.45, '#bfdbfe');
+      g.addColorStop(1, '#dcfce7');
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      for (let i = 0; i < 12; i++) {
+        ctx.fillStyle = i % 2 === 0 ? 'rgba(255,255,255,0.22)' : 'rgba(255,255,255,0.12)';
+        const x = (i * 97 + (state.time * 0.4)) % (canvas.width + 120) - 60;
+        const y = 70 + (i % 3) * 30;
+        drawCloud(x, y, 0.9 + (i % 4) * 0.08);
+      }
+    }
+
+    function drawCloud(x, y, s=1) {
+      ctx.beginPath();
+      ctx.arc(x, y, 18*s, 0, Math.PI * 2);
+      ctx.arc(x+20*s, y-10*s, 16*s, 0, Math.PI * 2);
+      ctx.arc(x+40*s, y, 19*s, 0, Math.PI * 2);
+      ctx.arc(x+20*s, y+8*s, 18*s, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    function drawRiver() {
+      ctx.save();
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+
+      ctx.strokeStyle = '#60a5fa';
+      ctx.lineWidth = 90;
+      ctx.beginPath();
+      ctx.moveTo(riverPoints[0].x, riverPoints[0].y);
+      for (let i = 1; i < riverPoints.length; i++) ctx.lineTo(riverPoints[i].x, riverPoints[i].y);
+      ctx.stroke();
+
+      ctx.strokeStyle = '#1d4ed8';
+      ctx.lineWidth = 72;
+      ctx.stroke();
+
+      ctx.strokeStyle = 'rgba(255,255,255,0.22)';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      for (let t = 0; t <= 1; t += 0.03) {
+        const p = riverPointAt(t);
+        const wave = Math.sin((t * 16) - state.waterPhase) * 10;
+        const y = p.y + wave * 0.4;
+        if (t === 0) ctx.moveTo(p.x, y);
+        else ctx.lineTo(p.x, y);
+      }
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function drawBanks() {
+      ctx.fillStyle = '#65a30d';
+      ctx.fillRect(0, 0, canvas.width, 135);
+      ctx.fillRect(0, 585, canvas.width, 115);
+
+      ctx.fillStyle = '#4d7c0f';
+      for (let i = 0; i < 18; i++) {
+        const x = 30 + i * 62;
+        drawTree(x, 125, 1);
+      }
+      for (let i = 0; i < 18; i++) {
+        const x = 20 + i * 64;
+        drawTree(x, 590, 1.1);
+      }
+    }
+
+    function drawTree(x, y, s=1) {
+      ctx.fillStyle = '#854d0e';
+      ctx.fillRect(x - 4*s, y, 8*s, 20*s);
+      ctx.fillStyle = '#15803d';
+      ctx.beginPath();
+      ctx.arc(x, y - 4*s, 16*s, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    function drawFactory() {
+      const x = 230, y = 120;
+      ctx.fillStyle = '#9a3412';
+      ctx.fillRect(x, y, 140, 90);
+      ctx.fillStyle = '#7c2d12';
+      ctx.fillRect(x+18, y-55, 22, 55);
+      ctx.fillRect(x+60, y-70, 24, 70);
+      ctx.fillRect(x+102, y-48, 20, 48);
+      ctx.fillStyle = '#fed7aa';
+      ctx.fillRect(x+15, y+18, 22, 20);
+      ctx.fillRect(x+50, y+18, 22, 20);
+      ctx.fillRect(x+85, y+18, 22, 20);
+      ctx.fillRect(x+30, y+50, 30, 40);
+      ctx.fillStyle = 'rgba(255,255,255,0.35)';
+      drawCloud(x+20, y-70 - Math.sin(state.waterPhase)*4, 0.6);
+      drawCloud(x+65, y-90 - Math.cos(state.waterPhase)*5, 0.5);
+      ctx.fillStyle = '#fff';
+      ctx.font = 'bold 16px sans-serif';
+      ctx.fillText('Usine PFAS', x+18, y+112);
+    }
+
+    function drawWaterUnit() {
+      const x = 760, y = 180;
+      ctx.fillStyle = '#14532d';
+      ctx.fillRect(x, y, 170, 86);
+      ctx.fillStyle = '#166534';
+      ctx.fillRect(x+20, y-26, 35, 26);
+      ctx.fillRect(x+75, y-36, 35, 36);
+      ctx.fillRect(x+130, y-22, 25, 22);
+      ctx.fillStyle = '#bbf7d0';
+      ctx.fillRect(x+18, y+18, 34, 20);
+      ctx.fillRect(x+68, y+18, 34, 20);
+      ctx.fillRect(x+118, y+18, 34, 20);
+      ctx.fillStyle = '#fff';
+      ctx.font = 'bold 16px sans-serif';
+      ctx.fillText('Unité des eaux', x+12, y+110);
+      if (state.treatmentActive) {
+        ctx.fillStyle = 'rgba(34,197,94,0.15)';
+        ctx.beginPath();
+        ctx.arc(x+85, y+42, 80 + Math.sin(state.pulse)*6, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    function drawAICenter() {
+      const x = 840, y = 32;
+      ctx.fillStyle = '#7c3aed';
+      roundRect(x, y, 220, 102, 20, true);
+      ctx.fillStyle = '#ede9fe';
+      ctx.font = 'bold 20px sans-serif';
+      ctx.fillText('Centre de détection IA', x+18, y+34);
+      ctx.font = '14px sans-serif';
+      ctx.fillText('Agrégation · Cartographie · Alerte', x+18, y+60);
+      ctx.fillText('Analyse des capteurs en temps réel', x+18, y+82);
+    }
+
+    function roundRect(x, y, w, h, r, fill) {
+      ctx.beginPath();
+      ctx.moveTo(x+r, y);
+      ctx.arcTo(x+w, y, x+w, y+h, r);
+      ctx.arcTo(x+w, y+h, x, y+h, r);
+      ctx.arcTo(x, y+h, x, y, r);
+      ctx.arcTo(x, y, x+w, y, r);
+      if (fill) ctx.fill();
+    }
+
+    function drawPipesAndLinks() {
+      ctx.save();
+      ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+      ctx.lineWidth = 3;
+      ctx.setLineDash([8, 8]);
+
+      sensors.forEach(s => {
+        ctx.beginPath();
+        ctx.moveTo(s.x, s.y-20);
+        ctx.lineTo(950, 120);
+        ctx.stroke();
+      });
+      ctx.restore();
+
+      ctx.strokeStyle = '#475569';
+      ctx.lineWidth = 12;
+      ctx.beginPath();
+      ctx.moveTo(300, 210);
+      ctx.lineTo(300, 250);
+      ctx.lineTo(345, 250);
+      ctx.stroke();
+    }
+
+    function drawSensors() {
+      sensors.forEach(sensor => {
+        const alert = sensor.risk >= 55;
+        const surveil = sensor.risk >= 25 && sensor.risk < 55;
+        ctx.fillStyle = alert ? '#ef4444' : surveil ? '#f59e0b' : '#22c55e';
+        ctx.beginPath();
+        ctx.arc(sensor.x, sensor.y, 11, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(sensor.x, sensor.y, 18 + Math.sin(state.pulse + sensor.x * 0.01) * 2, 0, Math.PI * 2);
+        ctx.stroke();
+
+        ctx.fillStyle = '#0f172a';
+        ctx.font = 'bold 12px sans-serif';
+        ctx.fillText(sensor.id, sensor.x - 8, sensor.y + 4);
+
+        ctx.fillStyle = '#fff';
+        ctx.font = '13px sans-serif';
+        ctx.fillText(sensor.label, sensor.x - 34, sensor.y - 22);
+      });
+    }
+
+    function drawParticles() {
+      state.particles.forEach(p => {
+        const pos = riverPointAt(p.t);
+        ctx.fillStyle = `rgba(239,68,68,${clamp(p.strength / 110, 0.15, 0.9)})`;
+        ctx.beginPath();
+        ctx.arc(pos.x, pos.y, p.radius, 0, Math.PI * 2);
+        ctx.fill();
+      });
+    }
+
+    function drawHeatZones() {
+      sensors.forEach(sensor => {
+        if (sensor.risk < 15) return;
+        const radius = 25 + sensor.risk * 0.8;
+        const alpha = clamp(sensor.risk / 220, 0.05, 0.35);
+        const grad = ctx.createRadialGradient(sensor.x, sensor.y, 5, sensor.x, sensor.y, radius);
+        grad.addColorStop(0, `rgba(239,68,68,${alpha})`);
+        grad.addColorStop(1, 'rgba(239,68,68,0)');
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(sensor.x, sensor.y, radius, 0, Math.PI * 2);
+        ctx.fill();
+      });
+    }
+
+    function drawLabels() {
+      ctx.fillStyle = '#0f172a';
+      ctx.font = 'bold 18px sans-serif';
+      ctx.fillText('Amont', 55, 150);
+      ctx.fillText('Aval', 990, 610);
+
+      if (state.spillActive) {
+        ctx.fillStyle = 'rgba(127,29,29,0.92)';
+        roundRect(370, 210, 210, 44, 14, true);
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 16px sans-serif';
+        ctx.fillText('Fuite PFAS en cours dans la rivière', 390, 238);
+      }
+    }
+
+    function draw() {
+      drawBackground();
+      drawBanks();
+      drawRiver();
+      drawHeatZones();
+      drawParticles();
+      drawFactory();
+      drawWaterUnit();
+      drawAICenter();
+      drawPipesAndLinks();
+      drawSensors();
+      drawLabels();
+    }
+
+    function loop() {
+      updateSimulation();
+      draw();
+      requestAnimationFrame(loop);
+    }
+
+    function resetSimulation() {
+      state.running = false;
+      state.time = 0;
+      state.particles = [];
+      state.spillActive = false;
+      state.treatmentActive = false;
+      state.lastNarrationStep = -1;
+      sensors.forEach((s, i) => {
+        s.risk = 0;
+        s.conductivity = 17 + (i % 3);
+        s.fluor = 1 + (i % 2);
+        s.pH = 7.1 + (i % 2) * 0.1;
+        s.turbidity = 9 + (i % 3);
+      });
+      timelineEl.innerHTML = '';
+      addTimeline('Réinitialisation', 'La rivière revient à un état de référence. Les capteurs repartent en mode surveillance.');
+      evaluateAI();
+      updateSensorList();
+    }
+
+    startBtn.addEventListener('click', () => {
+      state.running = true;
+      if (!state.spillActive) {
+        addTimeline('Scénario lancé', 'Le flux de la rivière est actif. Les capteurs transmettent les premières données vers le centre IA.');
+      }
+    });
+
+    spillBtn.addEventListener('click', () => {
+      state.running = true;
+      state.spillActive = true;
+      for (let i = 0; i < 8; i++) spawnParticle();
+      addTimeline('Fuite simulée', "L'usine relâche un panache de PFAS. Les capteurs proches de la sortie industrielle commencent à s'animer.");
+    });
+
+    treatBtn.addEventListener('click', () => {
+      state.treatmentActive = !state.treatmentActive;
+      addTimeline(
+        state.treatmentActive ? 'Unité des eaux activée' : 'Unité des eaux arrêtée',
+        state.treatmentActive
+          ? "Le traitement est lancé pour réduire la charge polluante vers l'aval."
+          : "Le traitement est suspendu ; l'IA continue la surveillance."
+      );
+    });
+
+    resetBtn.addEventListener('click', resetSimulation);
+
+    resetSimulation();
+    loop();
+  </script>
+</body>
+</html>
